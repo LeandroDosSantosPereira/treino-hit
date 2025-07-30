@@ -1,8 +1,7 @@
 🏃‍♂️ Treino HIIT Cardio – Substituto da Corrida
 Uma aplicação web simples de treino HIIT (High-Intensity Interval Training) com foco em cardio. Ideal para quem busca uma alternativa à corrida, com áudio em português, contagem de tempo, rodadas e alertas sonoros.
 
-📸 Preview
-<img src="https://via.placeholder.com/600x300.png?text=HIIT+Cardio+Demo" alt="HIIT Cardio Demo" />
+
 🚀 Funcionalidades
 Lista de exercícios com tempo e descanso configuráveis.
 
