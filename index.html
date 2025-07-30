@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Treino HIIT Cardio</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #111;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      flex-direction: column;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 400px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .exercise {
+      font-size: 2rem;
+      margin: 10px 0;
+    }
+
+    .timer {
+      font-size: 4rem;
+      margin: 10px 0;
+    }
+
+    .round {
+      font-size: 1.2rem;
+      margin: 10px 0;
+    }
+
+    .next-exercise {
+      font-size: 1.5rem;
+      color: #007bff;
+      margin-top: 10px;
+    }
+
+    button {
+      margin: 10px 5px;
+      padding: 12px 25px;
+      font-size: 1rem;
+      background: #28a745;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #555;
+    }
+
+    #pauseBtn {
+      background-color: #ffc107;
+      color: black;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>HIIT Cardio – Substituto Corrida</h1>
+    <div class="exercise" id="exercise">Pronto?</div>
+    <div class="timer" id="timer">00:00</div>
+    <div class="round" id="round">Rodada 1 de 4</div>
+    <div class="next-exercise" id="nextExercise"></div>
+    <button id="startBtn">Iniciar</button>
+    <button id="pauseBtn" disabled>Pausar</button>
+  </div>
+
+  <script>
+    const exercises = [
+      { name: "Pular corda", duration: 60, rest: 20 },
+      { name: "Polichinelos", duration: 60, rest: 20 },
+      { name: "Agachamento com salto", duration: 45, rest: 15 },
+      { name: "Montanha alpinista", duration: 45, rest: 15 },
+      { name: "Corrida parada", duration: 60, rest: 20 },
+      { name: "Burpees", duration: 30, rest: 30 }
+    ];
+
+    const totalRounds = 4;
+    let round = 1;
+    let current = 0;
+    let phase = 'preparation';
+    let timeLeft = 0;
+    let interval = null;
+    let isPaused = false;
+    const preparationTime = 5;
+
+    const timerDisplay = document.getElementById('timer');
+    const exerciseDisplay = document.getElementById('exercise');
+    const roundDisplay = document.getElementById('round');
+    const nextExerciseDisplay = document.getElementById('nextExercise');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+
+    const synth = window.speechSynthesis;
+    let voice = null;
+
+    synth.onvoiceschanged = () => {
+      const voices = synth.getVoices();
+      voice = voices.find(v => v.lang === 'pt-BR' || v.lang === 'pt-PT');
+      if (!voice && voices.length > 0) {
+        voice = voices[0];
+      }
+    };
+
+    function speak(text) {
+      if (synth.speaking) {
+        synth.cancel();
+      }
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'pt-BR';
+      if (voice) {
+        utterance.voice = voice;
+      }
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      synth.speak(utterance);
+    }
+
+    function formatTime(seconds) {
+      return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+    }
+
+    function playBeep() {
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(1000, ctx.currentTime);
+      oscillator.connect(ctx.destination);
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 0.15);
+    }
+
+    function updateUI() {
+      if (phase === 'preparation') {
+        exerciseDisplay.textContent = `Preparar!`;
+        nextExerciseDisplay.textContent = `Próximo: ${exercises[current].name}`;
+      } else if (phase === 'exercise') {
+        exerciseDisplay.textContent = `Exercício: ${exercises[current].name}`;
+        nextExerciseDisplay.textContent = '';
+      } else { // phase === 'rest'
+        exerciseDisplay.textContent = 'Descanso';
+        // Lógica para exibir o próximo exercício na tela durante o descanso
+        if (current + 1 < exercises.length) {
+          nextExerciseDisplay.textContent = `Próximo: ${exercises[current + 1].name}`;
+        } else if (round < totalRounds) {
+          nextExerciseDisplay.textContent = `Próximo: ${exercises[0].name} (Rodada ${round + 1})`;
+        } else {
+          nextExerciseDisplay.textContent = '';
+        }
+      }
+      timerDisplay.textContent = formatTime(timeLeft);
+      roundDisplay.textContent = `Rodada ${round} de ${totalRounds}`;
+    }
+
+    function next() {
+      if (phase === 'exercise') {
+        speak("Descanso!");
+        // Anuncia o próximo exercício aqui, durante a fase de descanso
+        let nextExerciseName = '';
+        if (current + 1 < exercises.length) {
+          nextExerciseName = exercises[current + 1].name;
+          speak(`Próximo: ${nextExerciseName}`);
+        } else if (round < totalRounds) {
+          nextExerciseName = exercises[0].name;
+          speak(`Próximo: ${nextExerciseName}. Nova rodada.`);
+        }
+
+        timeLeft = exercises[current].rest;
+        phase = 'rest';
+      } else { // phase === 'rest'
+        current++;
+        if (current >= exercises.length) {
+          current = 0;
+          round++;
+          if (round > totalRounds) {
+            clearInterval(interval);
+            exerciseDisplay.textContent = "Treino finalizado! 🎉";
+            timerDisplay.textContent = "00:00";
+            roundDisplay.textContent = "";
+            nextExerciseDisplay.textContent = "";
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            speak("Treino finalizado! Parabéns!");
+            return;
+          }
+        }
+        // A fala do próximo exercício foi movida para a fase de descanso
+        // Aqui, apenas iniciamos o novo exercício
+        speak(`Começar! ${exercises[current].name}`); // Anuncia o início do exercício
+        timeLeft = exercises[current].duration;
+        phase = 'exercise';
+      }
+      playBeep();
+      updateUI();
+    }
+
+    function startTimer() {
+      interval = setInterval(() => {
+        if (!isPaused) {
+          timeLeft--;
+          timerDisplay.textContent = formatTime(timeLeft);
+
+          // Avisos sonoros antes do fim do tempo
+          if (timeLeft === 3 || timeLeft === 2 || timeLeft === 1) {
+            playBeep();
+            if (synth.speaking) synth.cancel();
+          }
+
+          if (timeLeft <= 0) {
+            if (phase === 'preparation') {
+              speak(`Vamos começar! ${exercises[current].name}`);
+              timeLeft = exercises[current].duration;
+              phase = 'exercise';
+              playBeep();
+              updateUI();
+            } else {
+              next();
+            }
+          }
+        }
+      }, 1000);
+    }
+
+    function startWorkout() {
+      round = 1;
+      current = 0;
+      phase = 'preparation';
+      timeLeft = preparationTime;
+      updateUI();
+      speak(`Preparar para o treino! Em ${preparationTime} segundos.`);
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+      isPaused = false;
+      startTimer();
+    }
+
+    function togglePause() {
+      if (isPaused) {
+        isPaused = false;
+        pauseBtn.textContent = "Pausar";
+        speak("Retomando o treino.");
+      } else {
+        isPaused = true;
+        pauseBtn.textContent = "Retomar";
+        speak("Treino pausado.");
+      }
+    }
+
+    startBtn.addEventListener('click', startWorkout);
+    pauseBtn.addEventListener('click', togglePause);
+  </script>
+</body>
+
+</html>
